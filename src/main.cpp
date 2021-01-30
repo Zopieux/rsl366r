@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <RCSwitch.h>
 
 namespace {
@@ -55,20 +56,39 @@ void printCode() {
   Serial.write(";\n");
 }
 
+
+void ledFlash() {
+  constexpr uint32_t kOn = LOW, kOff = HIGH;
+  constexpr int kDelay = 4;
+  digitalWrite(LED_BUILTIN, kOn);
+  delay(kDelay);
+  digitalWrite(LED_BUILTIN, kOff);
+  delay(kDelay);
+}
+
 }  // namespace
 
-void setup() { Serial.begin(kSerialBaud); }
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(kSerialBaud);
+  ledFlash();
+}
 
 void loop() {
   switch (command.command) {
     case Command::INIT:
       if (Serial.available() < kCommandSize) return;
-      if (Serial.readBytes(command.in, kCommandSize) != kCommandSize) return;
+      if (Serial.readBytes(reinterpret_cast<char*>(command.in), kCommandSize) !=
+          kCommandSize)
+        return;
       break;
 
     case Command::CONFIGURE:
       if (Serial.available() < kConfigSize) return;
-      if (Serial.readBytes(config.in, kConfigSize) != kConfigSize) return;
+      if (Serial.readBytes(reinterpret_cast<char*>(config.in), kConfigSize) !=
+          kConfigSize)
+        return;
+      ledFlash();
       printConfig();
       rcSwitch.enableTransmit((int)config.config.transmitPin);
       rcSwitch.setPulseLength((int)config.config.pulseLength);
@@ -78,7 +98,10 @@ void loop() {
 
     case Command::SEND:
       if (Serial.available() < kCodeSize) return;
-      if (Serial.readBytes(codeToSend.in, kCodeSize) != kCodeSize) return;
+      if (Serial.readBytes(reinterpret_cast<char*>(codeToSend.in), kCodeSize) !=
+          kCodeSize)
+        return;
+      ledFlash();
       codeToSend.code &= k24BitMask;
       printCode();
       rcSwitch.send(codeToSend.code, kMessageLengthBits);
